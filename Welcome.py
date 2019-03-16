@@ -5,7 +5,16 @@
 # Created by: PyQt5 UI code generator 5.11.3
 #
 # WARNING! All changes made in this file will be lost!
+"""
+@Author：Thrones
+Q  Q：1690069811
+TelephoneNumber：18885672964
+Email：yang18885672964@gmail.com
+GitHub:
+https://github.com/FightingThrones?tab=repositories
 
+
+"""
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 class Ui_Welcome(object):

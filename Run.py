@@ -19,6 +19,134 @@ from MainWindow import Ui_MainWindow
 import qdarkstyle
 from PyQt5.QtGui import *
 import sys
+from Login import*
+from Signin import*
+
+#给自己设置一个超级用户，哈哈
+SUPER_USER={
+    'root':'yangzhengquan'
+}
+class LogInUi(QMainWindow,Ui_Login):
+    def __init__(self):
+        super(LogInUi,self).__init__()
+        self.setupUi(self)
+        #界面美化
+        self.setWindowTitle("人脸识别系统测试版 作者：杨政权")
+        self.setWindowIcon(QIcon("./Resource/Icon.png"))
+        movie = QMovie("./Resource/Logo.gif")
+        self.Logo_label.setMovie(movie)
+        movie.start()
+
+        #登录核心功能初始化
+        self.LineEdit_init()
+        self.PushButton_init()
+        #实例化SigninPage()
+        self.signin_page=SigninPage()
+
+    def LineEdit_init(self):
+        self.user_line.setPlaceholderText('请输入您的账号')
+        self.pwd_line.setPlaceholderText('请输入您的密码')
+        #设置成密码文本框
+        self.pwd_line.setEchoMode(QLineEdit.Password)
+
+        self.user_line.textChanged.connect(self.check_input_func)
+        self.pwd_line.textChanged.connect(self.check_input_func)
+
+
+    def PushButton_init(self):
+        self.login_button.setEnabled(False)
+        self.login_button.clicked.connect(self.check_login_func)
+        self.signin_button.clicked.connect(self.show_signin_page_func)
+
+
+    def check_login_func(self):
+        if SUPER_USER.get(self.user_line.text())==self.pwd_line.text():
+            QMessageBox.information(self,'Information','登录成功')
+            WelcomeUi.show()
+            self.close()
+        else:
+            QMessageBox.critical(self,'Wrong','错误的账号或者密码！')
+
+        self.user_line.clear()
+        self.pwd_line.clear()
+
+
+    def show_signin_page_func(self):
+        SigninPage.show()
+        LogInUi.hide()
+
+
+
+    def check_input_func(self):
+        if self.user_line.text() and self.pwd_line.text():
+            self.login_button.setEnabled(True)
+        else:
+            self.login_button.setEnabled(False)
+
+
+    def check_signin_func(self):
+        if self.signin_pwd_line.text() !=self.signin_pwd2_line.text():
+            QMessageBox.critical(self,'Wrong','输入的秘密不一致!')
+        elif self.signin_user_line.text() not in SUPER_USER:
+            SUPER_USER[self.signin_user_line.text()]=self.signin_pwd_line.text()
+            QMessageBox.information(self,'Information','注册成功！')
+            self.close()
+        else:
+            QMessageBox.critical(self,'Wrong','这个账号已经被注册了！')
+
+        self.signin_user_line.clear()
+        self.signin_pwd_line.clear()
+        self.signin_pwd2_line.clear()
+
+#用户注册
+class SigninPage(QMainWindow,Ui_SignIn):
+    def __init__(self):
+        super(SigninPage,self).__init__()
+        self.setupUi(self)
+
+        self.setWindowTitle("人脸识别系统测试版  作者：杨政权")
+        self.setWindowIcon(QIcon("./Resource/Icon.png"))
+
+
+        #注册核心功能初始化
+        self.LineEdit_init()
+        self.PushButton_init()
+
+
+    def LineEdit_init(self):
+        self.signin_pwd_line.setEchoMode(QLineEdit.Password)
+        self.signin_pwd2_line.setEchoMode(QLineEdit.Password)
+
+        self.signin_user_line.textChanged.connect(self.check_input_func)
+        self.signin_pwd_line.textChanged.connect(self.check_input_func)
+        self.signin_pwd2_line.textChanged.connect(self.check_input_func)
+
+    def PushButton_init(self):
+        self.signin_button.setEnabled(False)
+        self.signin_button.clicked.connect(self.check_signin_func)
+
+    def check_input_func(self):
+        if self.signin_user_line.text() and self.signin_pwd_line.text() and self.signin_pwd2_line.text():
+            self.signin_button.setEnabled(True)
+        else:
+            self.signin_button.setEnabled(False)
+
+    def check_signin_func(self):
+        if self.signin_pwd_line.text() !=self.signin_pwd2_line.text():
+            QMessageBox.critical(self,'Wrong','输入的秘密不一致!')
+        elif self.signin_user_line.text() not in SUPER_USER:
+            SUPER_USER[self.signin_user_line.text()]=self.signin_pwd_line.text()
+            QMessageBox.information(self,'Information','注册成功！')
+            LogInUi.show()
+            self.close()
+        else:
+            QMessageBox.critical(self,'Wrong','这个账号已经被注册了！')
+
+        self.signin_user_line.clear()
+        self.signin_pwd_line.clear()
+        self.signin_pwd2_line.clear()
+
+
 class WelcomeUi(QMainWindow,Ui_Welcome):
     def __init__(self):
         super(WelcomeUi,self).__init__()
@@ -44,13 +172,19 @@ class FaceUi(QMainWindow,Ui_MainWindow):
         # dlib的68点模型，使用作者训练好的特征预测器
         self.predictor = dlib.shape_predictor("model/shape_predictor_68_face_landmarks.dat")
 
+        #初始化槽函数
         self.slot_init()
+
+
+        #Ui美化
         self.button_open_camera.setIcon(QIcon("./Resource/Cam.jpg"))
         self.button_Face_Detection.setIcon(QIcon("./Resource/Cam.jpg"))
         self.button_Face_Recognition.setIcon(QIcon("./Resource/Cam.jpg"))
         self.button_Speech_Recognition.setIcon(QIcon("./Resource/Video.jpg"))
         self.button_Chat.setIcon(QIcon("./Resource/Chat.jpg"))
         self.button_Close.setIcon(QIcon("./Resource/exit.ico"))
+        pix=QPixmap("./Resource/Author2.jpg")
+        self.label_ShowPic.setPixmap(pix)
 
 
 
@@ -231,9 +365,9 @@ class FaceUi(QMainWindow,Ui_MainWindow):
         # self.cap.release()
         # 删除建立的窗口
         # cv2.destroyAllWindows()
-        # t = threading.Thread(target=self.face_thread, name='Face_Thread')
-        # t.start()
-        # t.join()
+        t = threading.Thread(target=self.face_thread, name='Face_Thread')
+        t.start()
+        t.join()
 
     def OPEN(self):
         self.show()
@@ -243,12 +377,17 @@ if __name__=="__main__":
     app=QApplication(sys.argv)
     app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
     WelcomeUi=WelcomeUi()
+    FaceUi = FaceUi()
+    LogInUi = LogInUi()
+    SigninPage=SigninPage()
+    LogInUi.show()
     WelcomeUi.setWindowIcon(QIcon("./Resource/Icon.png"))
     movie=QMovie("./Resource/Cool.gif")
     WelcomeUi.label.setMovie(movie)
     movie.start()
-    FaceUi=FaceUi()
+
+    FaceUi.setWindowTitle("人脸识别系统测试版")
     FaceUi.setWindowIcon(QIcon("./Resource/Icon.png"))
-    WelcomeUi.show()
+    #WelcomeUi.show()
     WelcomeUi.Start_pushButton.clicked.connect(FaceUi.OPEN)
     sys.exit(app.exec_())
