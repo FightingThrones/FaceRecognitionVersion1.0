@@ -2,80 +2,87 @@
 测试版本:
 加上UI界面，摄像头采集的图像实时显示到UI界面中
 而不是之前以弹窗形式显示
+同时增加了一些其他功能，修复了一些Bug
+系统还待继续完善，努力吧，骚年
 @author：Thrones
 邮箱：yang18885672964@gmail.com
 GitHub:  https://github.com/FightingThrones?tab=repositories
 """
+import sys
+from UI_Design import *
+
 
 import dlib
 import cv2
 import numpy as np
+import datetime
 import threading
 import _thread
-from PyQt5.QtWidgets import*
+from PyQt5.QtWidgets import QFileDialog
+from PyQt5.QtCore import *
+from PyQt5.QtWidgets import *
 from PyQt5 import QtCore
 from Welcome import Ui_Welcome
 from MainWindow import Ui_MainWindow
 import qdarkstyle
 from PyQt5.QtGui import *
 import sys
-from Login import*
-from Signin import*
-
-#给自己设置一个超级用户，哈哈
-SUPER_USER={
-    'root':'yangzhengquan'
+import pygame
+import time
+from Login import *
+from Signin import *
+pygame.init()
+# 给自己设置一个超级用户，哈哈
+SUPER_USER = {
+    'root': 'yangzhengquan'
 }
-class LogInUi(QMainWindow,Ui_Login):
+
+#登录框
+class LogInUi(QMainWindow, Ui_Login):
     def __init__(self):
-        super(LogInUi,self).__init__()
+        super(LogInUi, self).__init__()
         self.setupUi(self)
-        #界面美化
+        # 界面美化
         self.setWindowTitle("人脸识别系统测试版 作者：杨政权")
         self.setWindowIcon(QIcon("./Resource/Icon.png"))
         movie = QMovie("./Resource/Logo.gif")
         self.Logo_label.setMovie(movie)
         movie.start()
 
-        #登录核心功能初始化
+        # 登录核心功能初始化
         self.LineEdit_init()
         self.PushButton_init()
-        #实例化SigninPage()
-        self.signin_page=SigninPage()
+        # 实例化SigninPage()
+        self.signin_page = SigninPage()
 
     def LineEdit_init(self):
         self.user_line.setPlaceholderText('请输入您的账号')
         self.pwd_line.setPlaceholderText('请输入您的密码')
-        #设置成密码文本框
+        # 设置成密码文本框
         self.pwd_line.setEchoMode(QLineEdit.Password)
 
         self.user_line.textChanged.connect(self.check_input_func)
         self.pwd_line.textChanged.connect(self.check_input_func)
-
 
     def PushButton_init(self):
         self.login_button.setEnabled(False)
         self.login_button.clicked.connect(self.check_login_func)
         self.signin_button.clicked.connect(self.show_signin_page_func)
 
-
     def check_login_func(self):
-        if SUPER_USER.get(self.user_line.text())==self.pwd_line.text():
-            QMessageBox.information(self,'Information','登录成功')
+        if SUPER_USER.get(self.user_line.text()) == self.pwd_line.text():
+            QMessageBox.information(self, 'Information', '登录成功')
             WelcomeUi.show()
             self.close()
         else:
-            QMessageBox.critical(self,'Wrong','错误的账号或者密码！')
+            QMessageBox.critical(self, 'Wrong', '错误的账号或者密码！')
 
         self.user_line.clear()
         self.pwd_line.clear()
 
-
     def show_signin_page_func(self):
         SigninPage.show()
         LogInUi.hide()
-
-
 
     def check_input_func(self):
         if self.user_line.text() and self.pwd_line.text():
@@ -83,35 +90,33 @@ class LogInUi(QMainWindow,Ui_Login):
         else:
             self.login_button.setEnabled(False)
 
-
     def check_signin_func(self):
-        if self.signin_pwd_line.text() !=self.signin_pwd2_line.text():
-            QMessageBox.critical(self,'Wrong','输入的秘密不一致!')
+        if self.signin_pwd_line.text() != self.signin_pwd2_line.text():
+            QMessageBox.critical(self, 'Wrong', '输入的秘密不一致!')
         elif self.signin_user_line.text() not in SUPER_USER:
-            SUPER_USER[self.signin_user_line.text()]=self.signin_pwd_line.text()
-            QMessageBox.information(self,'Information','注册成功！')
+            SUPER_USER[self.signin_user_line.text()] = self.signin_pwd_line.text()
+            QMessageBox.information(self, 'Information', '注册成功！')
             self.close()
         else:
-            QMessageBox.critical(self,'Wrong','这个账号已经被注册了！')
+            QMessageBox.critical(self, 'Wrong', '这个账号已经被注册了！')
 
         self.signin_user_line.clear()
         self.signin_pwd_line.clear()
         self.signin_pwd2_line.clear()
 
-#用户注册
-class SigninPage(QMainWindow,Ui_SignIn):
+
+# 用户注册
+class SigninPage(QMainWindow, Ui_SignIn):
     def __init__(self):
-        super(SigninPage,self).__init__()
+        super(SigninPage, self).__init__()
         self.setupUi(self)
 
         self.setWindowTitle("人脸识别系统测试版  作者：杨政权")
         self.setWindowIcon(QIcon("./Resource/Icon.png"))
 
-
-        #注册核心功能初始化
+        # 注册核心功能初始化
         self.LineEdit_init()
         self.PushButton_init()
-
 
     def LineEdit_init(self):
         self.signin_pwd_line.setEchoMode(QLineEdit.Password)
@@ -132,24 +137,24 @@ class SigninPage(QMainWindow,Ui_SignIn):
             self.signin_button.setEnabled(False)
 
     def check_signin_func(self):
-        if self.signin_pwd_line.text() !=self.signin_pwd2_line.text():
-            QMessageBox.critical(self,'Wrong','输入的秘密不一致!')
+        if self.signin_pwd_line.text() != self.signin_pwd2_line.text():
+            QMessageBox.critical(self, 'Wrong', '输入的秘密不一致!')
         elif self.signin_user_line.text() not in SUPER_USER:
-            SUPER_USER[self.signin_user_line.text()]=self.signin_pwd_line.text()
-            QMessageBox.information(self,'Information','注册成功！')
+            SUPER_USER[self.signin_user_line.text()] = self.signin_pwd_line.text()
+            QMessageBox.information(self, 'Information', '注册成功！')
             LogInUi.show()
             self.close()
         else:
-            QMessageBox.critical(self,'Wrong','这个账号已经被注册了！')
+            QMessageBox.critical(self, 'Wrong', '这个账号已经被注册了！')
 
         self.signin_user_line.clear()
         self.signin_pwd_line.clear()
         self.signin_pwd2_line.clear()
 
-
-class WelcomeUi(QMainWindow,Ui_Welcome):
+#欢迎页面，展示软件相关信息
+class WelcomeUi(QMainWindow, Ui_Welcome):
     def __init__(self):
-        super(WelcomeUi,self).__init__()
+        super(WelcomeUi, self).__init__()
         self.setupUi(self)
         self.textEdit.setFocusPolicy(QtCore.Qt.NoFocus)
         self.textEdit_2.setFocusPolicy(QtCore.Qt.NoFocus)
@@ -157,44 +162,67 @@ class WelcomeUi(QMainWindow,Ui_Welcome):
         self.Close_pushButton.setIcon(QIcon("./Resource/exit.ico"))
         self.Close_pushButton.clicked.connect(self.close)
 
-class FaceUi(QMainWindow,Ui_MainWindow):
+#主界面，核心功能
+class FaceUi(QMainWindow, Ui_MainWindow):
     def __init__(self):
-        super(FaceUi,self).__init__()
-        #定时器，用户控制显示视频的帧率
-        self.timer_camera=QtCore.QTimer()
-
-        #打开笔记本摄像头
-        self.cap=cv2.VideoCapture()
-        self.CAM_NUM=0
-
+        super(FaceUi, self).__init__()
+        # 定时器，用户控制显示视频的帧率
+        self.timer_camera = QtCore.QTimer()
+        # 打开笔记本摄像头
+        self.cap = cv2.VideoCapture()
+        self.CAM_NUM = 0
+        self.cnt = 0
         self.setupUi(self)
+
+        movie = QMovie("./Resource/Show.gif")
+        self.label_show_camera.setMovie(movie)
+        movie.start()
+
         self.detector = dlib.get_frontal_face_detector()
         # dlib的68点模型，使用作者训练好的特征预测器
         self.predictor = dlib.shape_predictor("model/shape_predictor_68_face_landmarks.dat")
 
-        #初始化槽函数
+        # 初始化槽函数
         self.slot_init()
 
-
-        #Ui美化
+        # Ui美化
         self.button_open_camera.setIcon(QIcon("./Resource/Cam.jpg"))
-        self.button_Face_Detection.setIcon(QIcon("./Resource/Cam.jpg"))
+        self.btn_photo.setIcon(QIcon("./Resource/photo.ico"))
+        self.btn_input_name.setIcon(QIcon("./Resource/InputInformation.jpg"))
+        self.btn_input_information.setIcon(QIcon("./Resource/InputInformation.jpg"))
+        self.button_Face_Detection.setIcon(QIcon("./Resource/haha.jpg"))
         self.button_Face_Recognition.setIcon(QIcon("./Resource/Cam.jpg"))
         self.button_Speech_Recognition.setIcon(QIcon("./Resource/Video.jpg"))
         self.button_Chat.setIcon(QIcon("./Resource/Chat.jpg"))
         self.button_Close.setIcon(QIcon("./Resource/exit.ico"))
-        pix=QPixmap("./Resource/Author2.jpg")
+        pix = QPixmap("./Resource/Author2.jpg")
         self.label_ShowPic.setPixmap(pix)
+        self.textEdit.setPlaceholderText('请在这里输入您的姓名或者个人信息：')
 
-
-
-    #初始化各类事件响应函数
+    # 初始化各类事件响应函数
     def slot_init(self):
         self.button_open_camera.clicked.connect(self.button_open_camera_click)
+        self.btn_photo.clicked.connect(self.photo)
         self.timer_camera.timeout.connect(self.show_camera)
-        self.button_Face_Detection.clicked.connect(self.learning_face)
+        self.button_Face_Detection.clicked.connect(self.button_Face_Detection_click)
+
         self.button_Close.clicked.connect(self.close)
 
+    # def btn_photo_click(self):
+        # # self.timer_camera.stop()
+        # # self.cap.release()
+        # photo_thread = threading.Thread(target=self.photo_thread, name='Photo_Thread')
+        # photo_thread.start()
+        # photo_thread.join()
+
+    def button_Face_Detection_click(self):
+        self.timer_camera.stop()
+        self.cap.release()
+        Face_Detection_Thread = threading.Thread(target=self.learning_face_thread, name='Face_Detection')
+        Face_Detection_Thread.start()
+        # t.join()
+
+    # 打开笔记本摄像头
     def button_open_camera_click(self):
         # 如果定时器未启动
         if self.timer_camera.isActive() == False:
@@ -202,20 +230,24 @@ class FaceUi(QMainWindow,Ui_MainWindow):
             # 笔记本摄像头打开失败，提示用户检查
             if flag == False:
                 msg = QMessageBox.warning(self, u"Warning", u"请检查笔记本摄像头是否完好!",
-                                                    buttons=QMessageBox.Ok,
-                                                    defaultButton=QMessageBox.Ok)
+                                          buttons=QMessageBox.Ok,
+                                          defaultButton=QMessageBox.Ok)
             else:
                 self.timer_camera.start(30)
-                self.button_open_camera.setText(u'关闭笔记本摄像头')
+                self.button_open_camera.setText(u'请关闭摄像头')
         else:
             self.timer_camera.stop()
             self.cap.release()
             self.label_show_camera.clear()
-            self.button_open_camera.setText(u'打开笔记本摄像头')
+            movie = QMovie("./Resource/Show.gif")
+            self.label_show_camera.setMovie(movie)
+            movie.start()
+            self.button_open_camera.setText(u'请打开摄像头')
 
     def show_camera(self):
         # 从视频流中读取数据
         flag, self.image = self.cap.read()
+
         # 将读到的帧的大小重新设置为640*480
         show = cv2.resize(self.image, (640, 480))
         # 将视频色彩转换为RGB颜色
@@ -225,15 +257,15 @@ class FaceUi(QMainWindow,Ui_MainWindow):
         # 在Label里显示QImage
         self.label_show_camera.setPixmap(QPixmap.fromImage(showImage))
 
-        # 关闭系统处理函数
+    # 关闭系统处理函数
     def closeEvent(self, event):
         ok = QPushButton()
         cacel = QPushButton()
 
         msg = QMessageBox(QMessageBox.Warning, u"关闭", u"是否关闭！")
 
-        msg.addButton(ok,QMessageBox.ActionRole)
-        msg.addButton(cacel,QMessageBox.RejectRole)
+        msg.addButton(ok, QMessageBox.ActionRole)
+        msg.addButton(cacel, QMessageBox.RejectRole)
         ok.setText(u'确定')
         cacel.setText(u'取消')
         if msg.exec_() == QMessageBox.RejectRole:
@@ -245,7 +277,29 @@ class FaceUi(QMainWindow,Ui_MainWindow):
                 self.timer_camera.stop()
             event.accept()
 
-    def learning_face(self):
+    def photo(self):
+        self.cnt += 1
+        # 从视频流中读取数据
+        flag, self.image = self.cap.read()
+
+
+        # 将读到的帧的大小重新设置为640*480
+        show = cv2.resize(self.image, (640, 480))
+        # 将视频色彩转换为RGB颜色
+        show = cv2.cvtColor(show, cv2.COLOR_BGR2RGB)
+        # 将读取到的视频数据转换成QImage形式
+         #photo_save_path = QFileDialog.os.path.join(QFileDialog.os.path.dirname(QFileDialog.os.path.abspath('__file__')),
+         #                                           'candidate-faces/')
+         #self.showImage.save(photo_save_path + datetime.now().strftime("%Y%m%d%H%M%S") + ".jpg")
+
+
+        cv2.imwrite("./candidate-faces/"+"person"+str(self.cnt) + ".jpg", show)
+        QMessageBox.information(self, "Information",
+                                self.tr("拍照成功！"))
+
+        return self.cnt
+
+    def learning_face_thread(self):
         # 建cv2摄像头对象，这里使用电脑自带摄像头，如果接了外部摄像头，则自动切换到外部摄像头
         self.cap = cv2.VideoCapture(0)
         # 设置视频参数，propId设置的视频参数，value设置的参数值
@@ -365,19 +419,22 @@ class FaceUi(QMainWindow,Ui_MainWindow):
         # self.cap.release()
         # 删除建立的窗口
         # cv2.destroyAllWindows()
-        t = threading.Thread(target=self.face_thread, name='Face_Thread')
-        t.start()
-        t.join()
+        # t = threading.Thread(target=self.face_thread, name='Face_Thread')
+        # t.start()
+        # t.join()
 
     def OPEN(self):
         self.show()
         WelcomeUi.close()
 
+
 if __name__=="__main__":
     app=QApplication(sys.argv)
     app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
+
     WelcomeUi=WelcomeUi()
     FaceUi = FaceUi()
+
     LogInUi = LogInUi()
     SigninPage=SigninPage()
     LogInUi.show()
@@ -390,4 +447,12 @@ if __name__=="__main__":
     FaceUi.setWindowIcon(QIcon("./Resource/Icon.png"))
     #WelcomeUi.show()
     WelcomeUi.Start_pushButton.clicked.connect(FaceUi.OPEN)
+
+    #设置BGM
+    pygame.mixer.init()
+    track = pygame.mixer.music.load(r"./BGM/BGM.mp3")
+    pygame.mixer.music.play()
+    # time.sleep(120000)
+    # pygame.mixer.music.stop()
+
     sys.exit(app.exec_())
