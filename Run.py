@@ -2,16 +2,15 @@
 测试版本:
 加上UI界面，摄像头采集的图像实时显示到UI界面中
 而不是之前以弹窗形式显示
-同时增加了一些其他功能，修复了一些Bug
+同时增加了拍照，情绪分析、保存用户相关信息的功能，修复了一些Bug
 系统还待继续完善，努力吧，骚年
 @author：Thrones
 邮箱：yang18885672964@gmail.com
 GitHub:  https://github.com/FightingThrones?tab=repositories
+Update_Time:2019/3/19 0:45
 """
 import sys
 from UI_Design import *
-
-
 import dlib
 import cv2
 import numpy as np
@@ -203,6 +202,8 @@ class FaceUi(QMainWindow, Ui_MainWindow):
     def slot_init(self):
         self.button_open_camera.clicked.connect(self.button_open_camera_click)
         self.btn_photo.clicked.connect(self.photo)
+        self.btn_input_name.clicked.connect(self.btn_input_name_click)
+        self.btn_input_information.clicked.connect(self.btn_input_information_click)
         self.timer_camera.timeout.connect(self.show_camera)
         self.button_Face_Detection.clicked.connect(self.button_Face_Detection_click)
 
@@ -215,6 +216,7 @@ class FaceUi(QMainWindow, Ui_MainWindow):
         # photo_thread.start()
         # photo_thread.join()
 
+    #人脸检测和情绪分析一起
     def button_Face_Detection_click(self):
         self.timer_camera.stop()
         self.cap.release()
@@ -244,6 +246,7 @@ class FaceUi(QMainWindow, Ui_MainWindow):
             movie.start()
             self.button_open_camera.setText(u'请打开摄像头')
 
+    #显示原始图像
     def show_camera(self):
         # 从视频流中读取数据
         flag, self.image = self.cap.read()
@@ -277,6 +280,7 @@ class FaceUi(QMainWindow, Ui_MainWindow):
                 self.timer_camera.stop()
             event.accept()
 
+    #拍照函数
     def photo(self):
         self.cnt += 1
         # 从视频流中读取数据
@@ -284,21 +288,50 @@ class FaceUi(QMainWindow, Ui_MainWindow):
 
 
         # 将读到的帧的大小重新设置为640*480
-        show = cv2.resize(self.image, (640, 480))
+        #show = cv2.resize(self.image, (640, 480))
         # 将视频色彩转换为RGB颜色
-        show = cv2.cvtColor(show, cv2.COLOR_BGR2RGB)
+        #show = cv2.cvtColor(show, cv2.COLOR_BGR2RGB)
         # 将读取到的视频数据转换成QImage形式
+        #showImage = QImage(show.data, show.shape[1], show.shape[0], QImage.Format_RGB888)
          #photo_save_path = QFileDialog.os.path.join(QFileDialog.os.path.dirname(QFileDialog.os.path.abspath('__file__')),
          #                                           'candidate-faces/')
          #self.showImage.save(photo_save_path + datetime.now().strftime("%Y%m%d%H%M%S") + ".jpg")
 
 
-        cv2.imwrite("./candidate-faces/"+"person"+str(self.cnt) + ".jpg", show)
+        cv2.imwrite("./candidate-faces/"+"person"+str(self.cnt) + ".jpg", self.image)
         QMessageBox.information(self, "Information",
                                 self.tr("拍照成功！"))
 
         return self.cnt
 
+    #输入姓名
+    def btn_input_name_click(self):
+        try:
+            self.strText=self.textEdit.toPlainText()
+            qs=str(self.strText)
+            f=open('./candidate-faces/name.txt','a')
+            print(f.write('\n{}'.format(qs)))
+            f.close()
+            QMessageBox.information(self, "Information",
+                                    self.tr("姓名保存成功！"))
+            self.textEdit.clear()
+        except Exception as e:
+            print(e)
+
+    def btn_input_information_click(self):
+        try:
+            self.strText=self.textEdit.toPlainText()
+            qs=str(self.strText)
+            f=open('./candidate-faces/UserInformation.txt','a')
+            print(f.write('\n{}'.format(qs)))
+            f.close()
+            QMessageBox.information(self, "Information",
+                                    self.tr("用户信息保存成功！"))
+            self.textEdit.clear()
+        except Exception as e:
+            print(e)
+
+    #情绪分析核心代码
     def learning_face_thread(self):
         # 建cv2摄像头对象，这里使用电脑自带摄像头，如果接了外部摄像头，则自动切换到外部摄像头
         self.cap = cv2.VideoCapture(0)
