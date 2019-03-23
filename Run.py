@@ -1,5 +1,5 @@
 """
-测试版本:
+人脸识别系统测试版本:
 加上UI界面，摄像头采集的图像实时显示到UI界面中
 而不是之前以弹窗形式显示
 同时增加了拍照，情绪分析、保存用户相关信息的功能，修复了一些Bug
@@ -10,7 +10,6 @@ GitHub:  https://github.com/FightingThrones?tab=repositories
 Update_Time:2019/3/19 0:45
 """
 import sys
-from UI_Design import *
 import dlib
 import cv2
 import numpy as np
@@ -26,17 +25,27 @@ from MainWindow import Ui_MainWindow
 import qdarkstyle
 from PyQt5.QtGui import *
 import sys
+import os
+import shutil
+from skimage import io
+import csv
+import numpy as np
+import pandas as pd
+
 import pygame
+from datetime import datetime
 import time
 from Login import *
 from Signin import *
+from ExtractingFacialFeatures import*
+
 pygame.init()
 # 给自己设置一个超级用户，哈哈
 SUPER_USER = {
-    'root': 'yangzhengquan'
+    'root': 'yang'
 }
 
-#登录框
+#***************************登录界面开始*****************************
 class LogInUi(QMainWindow, Ui_Login):
     def __init__(self):
         super(LogInUi, self).__init__()
@@ -48,11 +57,13 @@ class LogInUi(QMainWindow, Ui_Login):
         self.Logo_label.setMovie(movie)
         movie.start()
 
+
         # 登录核心功能初始化
         self.LineEdit_init()
         self.PushButton_init()
         # 实例化SigninPage()
         self.signin_page = SigninPage()
+
 
     def LineEdit_init(self):
         self.user_line.setPlaceholderText('请输入您的账号')
@@ -72,7 +83,7 @@ class LogInUi(QMainWindow, Ui_Login):
         if SUPER_USER.get(self.user_line.text()) == self.pwd_line.text():
             QMessageBox.information(self, 'Information', '登录成功')
             WelcomeUi.show()
-            self.close()
+            self.hide()
         else:
             QMessageBox.critical(self, 'Wrong', '错误的账号或者密码！')
 
@@ -102,9 +113,9 @@ class LogInUi(QMainWindow, Ui_Login):
         self.signin_user_line.clear()
         self.signin_pwd_line.clear()
         self.signin_pwd2_line.clear()
+#****************************登录界面结束************************
 
-
-# 用户注册
+#****************************用户注册开始************************
 class SigninPage(QMainWindow, Ui_SignIn):
     def __init__(self):
         super(SigninPage, self).__init__()
@@ -149,8 +160,9 @@ class SigninPage(QMainWindow, Ui_SignIn):
         self.signin_user_line.clear()
         self.signin_pwd_line.clear()
         self.signin_pwd2_line.clear()
+#****************************用户注册借宿************************
 
-#欢迎页面，展示软件相关信息
+#********************欢迎页面，展示软件相关信息******************
 class WelcomeUi(QMainWindow, Ui_Welcome):
     def __init__(self):
         super(WelcomeUi, self).__init__()
@@ -160,9 +172,12 @@ class WelcomeUi(QMainWindow, Ui_Welcome):
         self.Start_pushButton.setIcon(QIcon("./Resource/Cam.jpg"))
         self.Close_pushButton.setIcon(QIcon("./Resource/exit.ico"))
         self.Close_pushButton.clicked.connect(self.close)
+#********************欢迎页面结束********************************
 
-#主界面，核心功能
+
+#*********************主界面，核心功能***************************
 class FaceUi(QMainWindow, Ui_MainWindow):
+    #*************************界面初始化*************************
     def __init__(self):
         super(FaceUi, self).__init__()
         # 定时器，用户控制显示视频的帧率
@@ -172,14 +187,24 @@ class FaceUi(QMainWindow, Ui_MainWindow):
         self.CAM_NUM = 0
         self.cnt = 0
         self.setupUi(self)
-
+        self.features_known_arr = []
+        # 存储所有人脸的名字
+        self.pos_namelist = []
+        self.name_namelist = []
         movie = QMovie("./Resource/Show.gif")
         self.label_show_camera.setMovie(movie)
         movie.start()
 
+
+        #Dlib正向人脸检测器
         self.detector = dlib.get_frontal_face_detector()
-        # dlib的68点模型，使用作者训练好的特征预测器
+
+        # dlib的68点模型，使用训练好的特征预测器
         self.predictor = dlib.shape_predictor("model/shape_predictor_68_face_landmarks.dat")
+
+        # 人脸识别模型，提取 128D 的特征矢量
+        # face recognition model, the object maps human faces into 128D vectors
+        facerec = dlib.face_recognition_model_v1("./model/dlib_face_recognition_resnet_model_v1.dat")
 
         # 初始化槽函数
         self.slot_init()
@@ -197,8 +222,9 @@ class FaceUi(QMainWindow, Ui_MainWindow):
         pix = QPixmap("./Resource/Author2.jpg")
         self.label_ShowPic.setPixmap(pix)
         self.textEdit.setPlaceholderText('请在这里输入您的姓名或者个人信息：')
-
-    # 初始化各类事件响应函数
+    #************************界面初始化结束**********************
+    path_make_dir=path_make_dir = "./FaceFolder/FaceDataSet/"
+    #***********************初始化各类事件响应函数**********************************
     def slot_init(self):
         self.button_open_camera.clicked.connect(self.button_open_camera_click)
         self.btn_photo.clicked.connect(self.photo)
@@ -206,132 +232,22 @@ class FaceUi(QMainWindow, Ui_MainWindow):
         self.btn_input_information.clicked.connect(self.btn_input_information_click)
         self.timer_camera.timeout.connect(self.show_camera)
         self.button_Face_Detection.clicked.connect(self.button_Face_Detection_click)
+        #self.button_Face_Recognition.clicked.connect(self.button_Face_Recognition_click)
 
         self.button_Close.clicked.connect(self.close)
+    #****************************按键响应函数结束************************
 
-    # def btn_photo_click(self):
-        # # self.timer_camera.stop()
-        # # self.cap.release()
-        # photo_thread = threading.Thread(target=self.photo_thread, name='Photo_Thread')
-        # photo_thread.start()
-        # photo_thread.join()
-
-    #人脸检测和情绪分析一起
+    #**************************情绪分析模块************************************
+    #************************情绪分析按键点击事件************************
     def button_Face_Detection_click(self):
         self.timer_camera.stop()
         self.cap.release()
         Face_Detection_Thread = threading.Thread(target=self.learning_face_thread, name='Face_Detection')
         Face_Detection_Thread.start()
-        # t.join()
+        #Face_Detection_Thread.join()
+    #************************按键点击结束********************************
 
-    # 打开笔记本摄像头
-    def button_open_camera_click(self):
-        # 如果定时器未启动
-        if self.timer_camera.isActive() == False:
-            flag = self.cap.open(self.CAM_NUM)
-            # 笔记本摄像头打开失败，提示用户检查
-            if flag == False:
-                msg = QMessageBox.warning(self, u"Warning", u"请检查笔记本摄像头是否完好!",
-                                          buttons=QMessageBox.Ok,
-                                          defaultButton=QMessageBox.Ok)
-            else:
-                self.timer_camera.start(30)
-                self.button_open_camera.setText(u'请关闭摄像头')
-        else:
-            self.timer_camera.stop()
-            self.cap.release()
-            self.label_show_camera.clear()
-            movie = QMovie("./Resource/Show.gif")
-            self.label_show_camera.setMovie(movie)
-            movie.start()
-            self.button_open_camera.setText(u'请打开摄像头')
-
-    #显示原始图像
-    def show_camera(self):
-        # 从视频流中读取数据
-        flag, self.image = self.cap.read()
-
-        # 将读到的帧的大小重新设置为640*480
-        show = cv2.resize(self.image, (640, 480))
-        # 将视频色彩转换为RGB颜色
-        show = cv2.cvtColor(show, cv2.COLOR_BGR2RGB)
-        # 将读取到的视频数据转换成QImage形式
-        showImage = QImage(show.data, show.shape[1], show.shape[0], QImage.Format_RGB888)
-        # 在Label里显示QImage
-        self.label_show_camera.setPixmap(QPixmap.fromImage(showImage))
-
-    # 关闭系统处理函数
-    def closeEvent(self, event):
-        ok = QPushButton()
-        cacel = QPushButton()
-
-        msg = QMessageBox(QMessageBox.Warning, u"关闭", u"是否关闭！")
-
-        msg.addButton(ok, QMessageBox.ActionRole)
-        msg.addButton(cacel, QMessageBox.RejectRole)
-        ok.setText(u'确定')
-        cacel.setText(u'取消')
-        if msg.exec_() == QMessageBox.RejectRole:
-            event.ignore()
-        else:
-            if self.cap.isOpened():
-                self.cap.release()
-            if self.timer_camera.isActive():
-                self.timer_camera.stop()
-            event.accept()
-
-    #拍照函数
-    def photo(self):
-        self.cnt += 1
-        # 从视频流中读取数据
-        flag, self.image = self.cap.read()
-
-
-        # 将读到的帧的大小重新设置为640*480
-        #show = cv2.resize(self.image, (640, 480))
-        # 将视频色彩转换为RGB颜色
-        #show = cv2.cvtColor(show, cv2.COLOR_BGR2RGB)
-        # 将读取到的视频数据转换成QImage形式
-        #showImage = QImage(show.data, show.shape[1], show.shape[0], QImage.Format_RGB888)
-         #photo_save_path = QFileDialog.os.path.join(QFileDialog.os.path.dirname(QFileDialog.os.path.abspath('__file__')),
-         #                                           'candidate-faces/')
-         #self.showImage.save(photo_save_path + datetime.now().strftime("%Y%m%d%H%M%S") + ".jpg")
-
-
-        cv2.imwrite("./candidate-faces/"+"person"+str(self.cnt) + ".jpg", self.image)
-        QMessageBox.information(self, "Information",
-                                self.tr("拍照成功！"))
-
-        return self.cnt
-
-    #输入姓名
-    def btn_input_name_click(self):
-        try:
-            self.strText=self.textEdit.toPlainText()
-            qs=str(self.strText)
-            f=open('./candidate-faces/name.txt','a')
-            print(f.write('\n{}'.format(qs)))
-            f.close()
-            QMessageBox.information(self, "Information",
-                                    self.tr("姓名保存成功！"))
-            self.textEdit.clear()
-        except Exception as e:
-            print(e)
-
-    def btn_input_information_click(self):
-        try:
-            self.strText=self.textEdit.toPlainText()
-            qs=str(self.strText)
-            f=open('./candidate-faces/UserInformation.txt','a')
-            print(f.write('\n{}'.format(qs)))
-            f.close()
-            QMessageBox.information(self, "Information",
-                                    self.tr("用户信息保存成功！"))
-            self.textEdit.clear()
-        except Exception as e:
-            print(e)
-
-    #情绪分析核心代码
+    #************************情绪分析核心代码*****************************
     def learning_face_thread(self):
         # 建cv2摄像头对象，这里使用电脑自带摄像头，如果接了外部摄像头，则自动切换到外部摄像头
         self.cap = cv2.VideoCapture(0)
@@ -339,6 +255,7 @@ class FaceUi(QMainWindow, Ui_MainWindow):
         self.cap.set(3, 480)
         # 截图screenshoot的计数器
         self.cnt = 0
+        # 接收用户输入的命令
 
         # cap.isOpened（） 返回true/false 检查初始化是否成功
         while (self.cap.isOpened()):
@@ -350,6 +267,7 @@ class FaceUi(QMainWindow, Ui_MainWindow):
             flag, self.im_rd = self.cap.read()
             # 每帧数据延时5ms，延时为0读取的是静态帧
             self.k = cv2.waitKey(5)
+
             # 取灰度
             self.img_gray = cv2.cvtColor(self.im_rd, cv2.COLOR_RGB2GRAY)
 
@@ -416,17 +334,20 @@ class FaceUi(QMainWindow, Ui_MainWindow):
                     # 张嘴，可能是开心或者惊讶
                     if round(mouth_higth >= 0.08):
                         if eye_hight >= 0.056:
-                            cv2.putText(self.im_rd, "amazing", (d.left(), d.bottom() + 20), cv2.FONT_HERSHEY_SIMPLEX,
+                            cv2.putText(self.im_rd, "amazing", (d.left(), d.bottom() + 20),
+                                        cv2.FONT_HERSHEY_SIMPLEX,
                                         0.8,
                                         (0, 0, 255), 2, 4)
                         else:
-                            cv2.putText(self.im_rd, "happy", (d.left(), d.bottom() + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.8,
+                            cv2.putText(self.im_rd, "happy", (d.left(), d.bottom() + 20), cv2.FONT_HERSHEY_SIMPLEX,
+                                        0.8,
                                         (0, 0, 255), 2, 4)
 
                     # 没有张嘴，可能是正常和生气
                     else:
                         if self.brow_k <= 0.07:
-                            cv2.putText(self.im_rd, "angry", (d.left(), d.bottom() + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.8,
+                            cv2.putText(self.im_rd, "angry", (d.left(), d.bottom() + 20), cv2.FONT_HERSHEY_SIMPLEX,
+                                        0.8,
                                         (0, 0, 255), 2, 4)
                         else:
                             cv2.putText(self.im_rd, "nature", (d.left(), d.bottom() + 20), cv2.FONT_HERSHEY_SIMPLEX,
@@ -455,12 +376,163 @@ class FaceUi(QMainWindow, Ui_MainWindow):
         # t = threading.Thread(target=self.face_thread, name='Face_Thread')
         # t.start()
         # t.join()
+    #****************************情绪分析模块结束*********************************
 
+    #************************ 打开摄像头按键触发事件*******************************
+    def button_open_camera_click(self):
+        # 如果定时器未启动
+        if self.timer_camera.isActive() == False:
+            flag = self.cap.open(self.CAM_NUM)
+            # 笔记本摄像头打开失败，提示用户检查
+            if flag == False:
+                msg = QMessageBox.warning(self, u"Warning", u"请检查笔记本摄像头是否完好!",
+                                          buttons=QMessageBox.Ok,
+                                          defaultButton=QMessageBox.Ok)
+            else:
+                self.timer_camera.start(30)
+                self.button_open_camera.setText(u'请关闭摄像头')
+        else:
+            self.timer_camera.stop()
+            self.cap.release()
+            self.label_show_camera.clear()
+            movie = QMovie("./Resource/Show.gif")
+            self.label_show_camera.setMovie(movie)
+            movie.start()
+            self.button_open_camera.setText(u'请打开摄像头')
+    #*****************************触发事件结束**********************
+
+    #**************************************显示原始图像***************
+    def show_camera(self):
+        # 从视频流中读取数据
+        flag, self.image = self.cap.read()
+
+        # 将读到的帧的大小重新设置为640*480
+        show = cv2.resize(self.image, (640, 480))
+        # 将视频色彩转换为RGB颜色
+        show = cv2.cvtColor(show, cv2.COLOR_BGR2RGB)
+        # 将读取到的视频数据转换成QImage形式
+        showImage = QImage(show.data, show.shape[1], show.shape[0], QImage.Format_RGB888)
+        # 在Label里显示QImage
+        self.label_show_camera.setPixmap(QPixmap.fromImage(showImage))
+    #***************************************显示结束*******************
+
+    #*****************************关闭系统处理函数*********************
+    def closeEvent(self, event):
+        ok = QPushButton()
+        cacel = QPushButton()
+
+        msg = QMessageBox(QMessageBox.Warning, u"关闭", u"是否关闭！")
+        msg.setWindowTitle("温馨提示:")
+        msg.setWindowIcon(QIcon("./Resource/Icon.png"))
+        msg.addButton(ok, QMessageBox.ActionRole)
+        msg.addButton(cacel, QMessageBox.RejectRole)
+        ok.setText(u'确定')
+        cacel.setText(u'取消')
+        if msg.exec_() == QMessageBox.RejectRole:
+            event.ignore()
+        else:
+            if self.cap.isOpened():
+                self.cap.release()
+            if self.timer_camera.isActive():
+                self.timer_camera.stop()
+            event.accept()
+    #********************************处理函数结束**********************
+
+
+    #***********************删除之前存的人脸数据文件夹***********************
+    def pre_clear(self):
+        folders_rd = os.listdir(self.path_make_dir)
+        for i in range(len(folders_rd)):
+            shutil.rmtree(self.path_make_dir + folders_rd[i])
+
+        csv_rd = os.listdir(self.path_csv)
+        for i in range(len(csv_rd)):
+            os.remove(self.path_csv + csv_rd[i])
+    #*****************************pre_clear()到此结束***********************
+
+
+    #**********************************拍照函数******************************
+    def photo(self):
+        self.pre_clear
+        current_face_dir=self.path_make_dir + "person_" + str(self.cnt)
+        #self.flag=movie.start()
+        if(movie.start()):
+            QMessageBox.warning(self, u"Warning", u"请检查笔记本摄像头是否打开或者完好!",
+                                buttons=QMessageBox.Ok,
+                                defaultButton=QMessageBox.Ok)
+        else:
+            self.cnt += 1
+            # 从视频流中读取数据
+            flag, self.image = self.cap.read()
+            # 采集人脸存放路径位置
+            current_face_dir = self.path_make_dir + "person_" + str(self.cnt)
+            print('\n')
+            for dirs in (os.listdir(self.path_make_dir)):
+                if current_face_dir == self.path_make_dir + dirs:
+                    shutil.rmtree(current_face_dir)
+                    print("删除以前的文件:", current_face_dir)
+            os.makedirs(current_face_dir)
+            print("采集的人脸数据集放在以下文件夹中: ", current_face_dir)
+
+            cv2.imwrite(current_face_dir +"/img_face_"+str(self.cnt) + ".jpg", self.image)
+            QMessageBox.information(self, "Information",
+                                self.tr("拍照成功！"))
+            return self.cnt
+    #********************************拍照函数结束****************************
+
+    #*********************************输入姓名按键*******************************
+    def btn_input_name_click(self):
+        self.strText = self.textEdit.toPlainText()
+        if self.strText=="":
+            QMessageBox.information(self, "Information",
+                                    self.tr("请在文本框内输入您的姓名！"))
+        else:
+            try:
+                #now_date = datetime.now().strftime('%Y-%m-%d') # 格式为str
+
+                now_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S') # 格式为 datetime.datetime
+
+                qs=str(self.strText+"   "+now_time)
+                f=open('./candidate-faces/name.txt','a')
+                print(f.write('\n{}'.format(qs)))
+                f.close()
+                QMessageBox.information(self, "Information",
+                                    self.tr("姓名保存成功！"))
+                self.textEdit.clear()
+            except Exception as e:
+                print(e)
+    #*********************************输入姓名结束***************************
+
+    #*********************************输入信息按键************************
+    def btn_input_information_click(self):
+        self.strText=self.textEdit.toPlainText()
+        if self.strText=="":
+            QMessageBox.information(self, "Information",
+                                    self.tr("请在文本框内输入您的相关信息！"))
+        else:
+            try:
+                now_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # 格式为 datetime.datetime
+                self.strText=self.textEdit.toPlainText()
+                qs=str(self.strText+"   "+now_time)
+                f=open('./candidate-faces/UserInformation.txt','a')
+                print(f.write('\n{}'.format(qs)))
+                f.close()
+                QMessageBox.information(self, "Information",
+                                    self.tr("用户信息保存成功！"))
+                self.textEdit.clear()
+            except Exception as e:
+                print(e)
+    #*********************************输入信息结束**************************
+
+    #*****************************开始人脸识别旅程，主界面显示*****************
     def OPEN(self):
         self.show()
         WelcomeUi.close()
+    #*********************************开始识别旅程结束***********************
 
+#**********************主界面到此结束****************************
 
+#**********************程序入口***********************************
 if __name__=="__main__":
     app=QApplication(sys.argv)
     app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
@@ -484,8 +556,9 @@ if __name__=="__main__":
     #设置BGM
     pygame.mixer.init()
     track = pygame.mixer.music.load(r"./BGM/BGM.mp3")
-    pygame.mixer.music.play()
+    #pygame.mixer.music.play()
     # time.sleep(120000)
     # pygame.mixer.music.stop()
 
     sys.exit(app.exec_())
+#***********************程序结束**********************************
