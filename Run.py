@@ -160,7 +160,7 @@ class SigninPage(QMainWindow, Ui_SignIn):
         self.signin_user_line.clear()
         self.signin_pwd_line.clear()
         self.signin_pwd2_line.clear()
-#****************************用户注册借宿************************
+#****************************用户注册结束************************
 
 #********************欢迎页面，展示软件相关信息******************
 class WelcomeUi(QMainWindow, Ui_Welcome):
@@ -232,7 +232,7 @@ class FaceUi(QMainWindow, Ui_MainWindow):
         self.btn_input_information.clicked.connect(self.btn_input_information_click)
         self.timer_camera.timeout.connect(self.show_camera)
         self.button_Face_Detection.clicked.connect(self.button_Face_Detection_click)
-        #self.button_Face_Recognition.clicked.connect(self.button_Face_Recognition_click)
+        self.button_Face_Recognition.clicked.connect(self.button_Face_Recognition_click)
 
         self.button_Close.clicked.connect(self.close)
     #****************************按键响应函数结束************************
@@ -377,6 +377,62 @@ class FaceUi(QMainWindow, Ui_MainWindow):
         # t.start()
         # t.join()
     #****************************情绪分析模块结束*********************************
+
+    #************************人脸识别按键点击*************************
+    def button_Face_Recognition_click(self):
+        self.timer_camera.stop()
+        self.cap.release()
+        Face_Recognition_Thread = threading.Thread(target=self.face_recognition_thread, name='Face_Recognition')
+        Face_Recognition_Thread.start()
+    #****************************到此结束*******************
+
+    #********************人脸识别线程*****************************
+    def face_recognition_thread(self):
+        # 建cv2摄像头对象，这里使用电脑自带摄像头，如果接了外部摄像头，则自动切换到外部摄像头
+        self.cap = cv2.VideoCapture(0)
+        # 设置视频参数，propId设置的视频参数，value设置的参数值
+        self.cap.set(3, 480)
+        # 截图screenshoot的计数器
+        self.cnt = 0
+        while(self.cap.isOpened()):
+            flag,self.img_rd=self.cap.read()
+            img_gray=cv2.cvtColor(self.img_rd,cv2.COLOR_RGB2GRAY)
+            faces=detector(img_gray,0)
+            font=cv2.FONT_HERSHEY_COMPLEX
+            pos_namelist=[]
+            name_namelist=[]
+            if (len(faces) != 0):
+                features_cap_arr=[]
+                for i in range(len(faces)):
+                    shape=predictor(self.img_rd,faces[i])
+                    features_cap_arr.append(facerec.compute_face_descriptor(self.img_rd,shape))
+
+                #遍历捕获到的图像中所有的人脸
+                for k in range(len(faces)):
+                    name_namelist.append("Thrones")
+                    # 每个捕获人脸的名字坐标
+                    pos_namelist.append(
+                        tuple([faces[k].left(), int(faces[k].bottom() + (faces[k].bottom() - faces[k].top()) / 4)]))
+
+                # 矩形框
+                for kk, d in enumerate(faces):
+                    # 绘制矩形框
+                    cv2.rectangle(self.img_rd, tuple([d.left(), d.top()]), tuple([d.right(), d.bottom()]), (0, 255, 255),
+                                      2)
+                # 在人脸框下面写人脸名字
+                for i in range(len(faces)):
+                    cv2.putText(self.img_rd, name_namelist[i], pos_namelist[i], font, 0.8, (0, 255, 255), 1, cv2.LINE_AA)
+            cv2.putText(self.img_rd, "Face Recognition", (20, 40), font, 1, (0, 0, 0), 1, cv2.LINE_AA)
+            cv2.putText(self.img_rd, "Faces: " + str(len(faces)), (20, 100), font, 1, (0, 0, 255), 1, cv2.LINE_AA)
+            # # 将读到的帧的大小重新设置为640*480
+            show = cv2.resize(self.img_rd, (640, 480))
+            # 将视频色彩转换为RGB颜色
+            show = cv2.cvtColor(show, cv2.COLOR_BGR2RGB)
+            # 将读取到的视频数据转换成QImage形式
+            showImage = QImage(show.data, show.shape[1], show.shape[0], QImage.Format_RGB888)
+            # 在Label里显示QImage
+            self.label_show_camera.setPixmap(QPixmap.fromImage(showImage))
+    #********************人脸识别结束***************************
 
     #************************ 打开摄像头按键触发事件*******************************
     def button_open_camera_click(self):
