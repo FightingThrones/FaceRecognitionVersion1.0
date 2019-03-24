@@ -37,8 +37,8 @@ from datetime import datetime
 import time
 from Login import *
 from Signin import *
-from ExtractingFacialFeatures import*
-
+from ExtractingFacialFeatures import *
+#from FaceRecognition import*
 pygame.init()
 # 给自己设置一个超级用户，哈哈
 SUPER_USER = {
@@ -384,6 +384,9 @@ class FaceUi(QMainWindow, Ui_MainWindow):
         self.cap.release()
         Face_Recognition_Thread = threading.Thread(target=self.face_recognition_thread, name='Face_Recognition')
         Face_Recognition_Thread.start()
+        # CountDis_Thread=threading.Thread(target=self.CountDis_Thread,name='CountDis_Thread')
+        # CountDis_Thread.start()
+
     #****************************到此结束*******************
 
     #********************人脸识别线程*****************************
@@ -396,22 +399,22 @@ class FaceUi(QMainWindow, Ui_MainWindow):
         self.cnt = 0
         while(self.cap.isOpened()):
             flag,self.img_rd=self.cap.read()
-            img_gray=cv2.cvtColor(self.img_rd,cv2.COLOR_RGB2GRAY)
-            faces=detector(img_gray,0)
+            self.img_gray=cv2.cvtColor(self.img_rd,cv2.COLOR_RGB2GRAY)
+            faces=self.detector(self.img_gray,0)
             font=cv2.FONT_HERSHEY_COMPLEX
-            pos_namelist=[]
-            name_namelist=[]
+            self.pos_namelist=[]
+            self.name_namelist=[]
             if (len(faces) != 0):
-                features_cap_arr=[]
-                for i in range(len(faces)):
-                    shape=predictor(self.img_rd,faces[i])
-                    features_cap_arr.append(facerec.compute_face_descriptor(self.img_rd,shape))
+                # features_cap_arr=[]
+                # for i in range(len(faces)):
+                #     shape=self.predictor(self.img_rd,faces[i])
+                #     features_cap_arr.append(self.facerec.compute_face_descriptor(self.img_rd,shape))
 
                 #遍历捕获到的图像中所有的人脸
                 for k in range(len(faces)):
-                    name_namelist.append("Thrones")
+                    self.name_namelist.append("Thrones")
                     # 每个捕获人脸的名字坐标
-                    pos_namelist.append(
+                    self.pos_namelist.append(
                         tuple([faces[k].left(), int(faces[k].bottom() + (faces[k].bottom() - faces[k].top()) / 4)]))
 
                 # 矩形框
@@ -421,7 +424,7 @@ class FaceUi(QMainWindow, Ui_MainWindow):
                                       2)
                 # 在人脸框下面写人脸名字
                 for i in range(len(faces)):
-                    cv2.putText(self.img_rd, name_namelist[i], pos_namelist[i], font, 0.8, (0, 255, 255), 1, cv2.LINE_AA)
+                    cv2.putText(self.img_rd, self.name_namelist[i], self.pos_namelist[i], font, 0.8, (0, 255, 255), 1, cv2.LINE_AA)
             cv2.putText(self.img_rd, "Face Recognition", (20, 40), font, 1, (0, 0, 0), 1, cv2.LINE_AA)
             cv2.putText(self.img_rd, "Faces: " + str(len(faces)), (20, 100), font, 1, (0, 0, 255), 1, cv2.LINE_AA)
             # # 将读到的帧的大小重新设置为640*480
@@ -433,6 +436,11 @@ class FaceUi(QMainWindow, Ui_MainWindow):
             # 在Label里显示QImage
             self.label_show_camera.setPixmap(QPixmap.fromImage(showImage))
     #********************人脸识别结束***************************
+
+    # #*********************计算欧式距离**************************
+    # def CountDis_Thread(self):
+    #         print("This is a test string")
+    # #********************函数到此结束****************************
 
     #************************ 打开摄像头按键触发事件*******************************
     def button_open_camera_click(self):
@@ -533,8 +541,18 @@ class FaceUi(QMainWindow, Ui_MainWindow):
             cv2.imwrite(current_face_dir +"/img_face_"+str(self.cnt) + ".jpg", self.image)
             QMessageBox.information(self, "Information",
                                 self.tr("拍照成功！"))
+            #拍照以后重新提取人脸特征
+            ExtractingFacialFeatures_Thread = threading.Thread(target=self.ExtractingFacialFeatures_Thread, name='Extracting_Thread')
+            ExtractingFacialFeatures_Thread.start()
             return self.cnt
     #********************************拍照函数结束****************************
+
+    #*********************调用提取人脸特征****************************
+    def ExtractingFacialFeatures_Thread(self):
+        EFF=ExtractingFacialFeatures()
+        EFF.Write_Person_Csv()
+        EFF.SaveCsv()
+    #***************************调用结束********************************
 
     #*********************************输入姓名按键*******************************
     def btn_input_name_click(self):
