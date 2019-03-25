@@ -38,7 +38,7 @@ import time
 from Login import *
 from Signin import *
 from ExtractingFacialFeatures import *
-#from FaceRecognition import*
+from FaceRecognition import*
 pygame.init()
 # 给自己设置一个超级用户，哈哈
 SUPER_USER = {
@@ -368,14 +368,6 @@ class FaceUi(QMainWindow, Ui_MainWindow):
             showImage = QImage(show.data, show.shape[1], show.shape[0], QImage.Format_RGB888)
             # 在Label里显示QImage
             self.label_show_camera.setPixmap(QPixmap.fromImage(showImage))
-
-        # 释放摄像头
-        # self.cap.release()
-        # 删除建立的窗口
-        # cv2.destroyAllWindows()
-        # t = threading.Thread(target=self.face_thread, name='Face_Thread')
-        # t.start()
-        # t.join()
     #****************************情绪分析模块结束*********************************
 
     #************************人脸识别按键点击*************************
@@ -384,51 +376,80 @@ class FaceUi(QMainWindow, Ui_MainWindow):
         self.cap.release()
         Face_Recognition_Thread = threading.Thread(target=self.face_recognition_thread, name='Face_Recognition')
         Face_Recognition_Thread.start()
-        # CountDis_Thread=threading.Thread(target=self.CountDis_Thread,name='CountDis_Thread')
-        # CountDis_Thread.start()
-
     #****************************到此结束*******************
 
     #********************人脸识别线程*****************************
     def face_recognition_thread(self):
-        # 建cv2摄像头对象，这里使用电脑自带摄像头，如果接了外部摄像头，则自动切换到外部摄像头
-        self.cap = cv2.VideoCapture(0)
-        # 设置视频参数，propId设置的视频参数，value设置的参数值
-        self.cap.set(3, 480)
-        # 截图screenshoot的计数器
-        self.cnt = 0
-        while(self.cap.isOpened()):
-            flag,self.img_rd=self.cap.read()
-            self.img_gray=cv2.cvtColor(self.img_rd,cv2.COLOR_RGB2GRAY)
-            faces=self.detector(self.img_gray,0)
-            font=cv2.FONT_HERSHEY_COMPLEX
-            self.pos_namelist=[]
-            self.name_namelist=[]
-            if (len(faces) != 0):
-                # features_cap_arr=[]
-                # for i in range(len(faces)):
-                #     shape=self.predictor(self.img_rd,faces[i])
-                #     features_cap_arr.append(self.facerec.compute_face_descriptor(self.img_rd,shape))
+        face = Face_Recognition()
+        Face_Recognition_Thread = threading.Thread(target=face.ReadFaceData, name='Face_Recognition')
+        Face_Recognition_Thread.start()
+        # 创建 cv2 摄像头对象
+        cap = cv2.VideoCapture(0)
+        # cap.set(propId, value)
+        # 设置视频参数，propId 设置的视频参数，value 设置的参数值
+        cap.set(3, 480)
+        # cap.isOpened() 返回 true/false 检查初始化是否成功
+        while(cap.isOpened()):
+            flag, img_rd = cap.read()
+            #进行灰度变换
+            img_gray = cv2.cvtColor(img_rd, cv2.COLOR_RGB2GRAY)
 
-                #遍历捕获到的图像中所有的人脸
+            # 人脸数 faces
+            faces = face.detector(img_gray, 0)
+
+            # 待会要写的字体
+            font = cv2.FONT_HERSHEY_COMPLEX
+
+            # 存储所有人脸的名字
+            pos_namelist = []
+            name_namelist = []
+            # 检测到人脸
+            if len(faces) != 0:
+                # 获取当前捕获到的图像的所有人脸的特征，存储到 features_cap_arr
+                features_cap_arr = []
+                for i in range(len(faces)):
+                    shape = face.predictor(img_rd, faces[i])
+                    features_cap_arr.append(face.facerec.compute_face_descriptor(img_rd, shape))
+
+                # 遍历捕获到的图像中所有的人脸
                 for k in range(len(faces)):
-                    self.name_namelist.append("Thrones")
+                    # 让人名跟随在矩形框的下方
+                    # 确定人名的位置坐标
+                    # 先默认所有人不认识，是 unknown
+                    name_namelist.append("Thrones")
+
                     # 每个捕获人脸的名字坐标
-                    self.pos_namelist.append(
+                    pos_namelist.append(
                         tuple([faces[k].left(), int(faces[k].bottom() + (faces[k].bottom() - faces[k].top()) / 4)]))
 
-                # 矩形框
-                for kk, d in enumerate(faces):
-                    # 绘制矩形框
-                    cv2.rectangle(self.img_rd, tuple([d.left(), d.top()]), tuple([d.right(), d.bottom()]), (0, 255, 255),
-                                      2)
+                    # 对于某张人脸，遍历所有存储的人脸特征
+                    for i in range(len(face.features_known_arr)):
+                        print("with person_", str(i + 1), "the ", end='')
+                        # 将某张人脸与存储的所有人脸数据进行比对
+                        thread = return_euclidean_distance_run_thread()
+                        compare = thread.return_euclidean_distance_run(features_cap_arr[k], face.features_known_arr[i])
+                        thread.start()
+                        # compare = face.return_euclidean_distance(features_cap_arr[k], face.features_known_arr[i])
+                        if compare == "same":  # 找到了相似脸
+                            # 在这里修改 person_0, person_1 ... 的名字
+                            # 这里只写了前三个
+                            # Here you can modify the names shown on the camera
+                            if i == 0:
+                                name_namelist[k] = "Person_1"
+                            elif i == 1:
+                                name_namelist[k] = "Person_2"
+                            elif i == 2:
+                                name_namelist[k] = "Person_3"
+
                 # 在人脸框下面写人脸名字
                 for i in range(len(faces)):
-                    cv2.putText(self.img_rd, self.name_namelist[i], self.pos_namelist[i], font, 0.8, (0, 255, 255), 1, cv2.LINE_AA)
-            cv2.putText(self.img_rd, "Face Recognition", (20, 40), font, 1, (0, 0, 0), 1, cv2.LINE_AA)
-            cv2.putText(self.img_rd, "Faces: " + str(len(faces)), (20, 100), font, 1, (0, 0, 255), 1, cv2.LINE_AA)
+                    cv2.putText(img_rd, name_namelist[i], pos_namelist[i], font, 0.8, (0, 255, 255), 1, cv2.LINE_AA)
+            print("Name list now:", name_namelist, "\n")
+            cv2.putText(img_rd, "Face Recognition", (20, 40), font, 1, (0, 0, 0), 1, cv2.LINE_AA)
+            cv2.putText(img_rd, "Faces: " + str(len(faces)), (20, 100), font, 1, (0, 0, 255), 1, cv2.LINE_AA)
+
             # # 将读到的帧的大小重新设置为640*480
-            show = cv2.resize(self.img_rd, (640, 480))
+            show = cv2.resize(img_rd, (640, 480))
             # 将视频色彩转换为RGB颜色
             show = cv2.cvtColor(show, cv2.COLOR_BGR2RGB)
             # 将读取到的视频数据转换成QImage形式
